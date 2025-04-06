@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Data Submission</title>
+    <style>
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; }
+        input, textarea, select { width: 100%; padding: 8px; }
+        button { padding: 10px 20px; background: #238636; color: white; border: none; }
+        #kindContainer { display: flex; gap: 10px; }
+        #kindSelect { flex: 1; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Data Submission Form</h1>
+        <div class="input-group">
+            <label>Content:</label>
+            <textarea id="content" rows="4"></textarea>
+        </div>
+        <div class="input-group">
+            <label>Kind:</label>
+            <div id="kindContainer">
+                <select id="kindSelect" onchange="handleKindChange()"></select>
+                <input type="text" id="newKindInput" style="display: none;" placeholder="Enter new kind">
+            </div>
+        </div>
+        <div class="input-group">
+            <label>GitHub Token:</label>
+            <input type="password" id="token">
+        </div>
+        <button onclick="submitData()">Submit</button>
+        <div id="message"></div>
+    </div>
+
+    <script>
+        let allKinds = [];
+        let isAddingNewKind = false;
+
+        async function initialize() {
+            // 尝试加载现有分类
+            try {
+                const token = document.getElementById('token').value;
+                if (token) {
+                    const existingData = await fetchData(token);
+                    allKinds = [...new Set(existingData.map(d => d.kind))];
+                    updateKindSelect();
+                }
+            } catch (error) {
+                console.log("Initial load failed, will retry on submit");
+            }
+        }
+
+        function updateKindSelect() {
+            const select = document.getElementById('kindSelect');
+            select.innerHTML = '';
+            
+            // 添加现有分类
+            allKinds.forEach(kind => {
+                const option = document.createElement('option');
+                option.value = kind;
+                option.textContent = kind;
+                select.appendChild(option);
+            });
+            
+            // 添加"添加分类"选项
+            const addOption = document.createElement('option');
+            addOption.value = "add_new";
+            addOption.textContent = "+ Add New Kind";
+            select.appendChild(addOption);
+        }
+
+        function handleKindChange() {
+            const select = document.getElementById('kindSelect');
+            const newKindInput = document.getElementById('newKindInput');
+            
+            if (select.value === "add_new") {
+                isAddingNewKind = true;
+                select.style.display = 'none';
+                newKindInput.style.display = 'block';
+                newKindInput.focus();
+            } else {
+                isAddingNewKind = false;
+                select.style.display = 'block';
+                newKindInput.style.display = 'none';
+            }
+        }
+
+        async function submitData() {
+            const content = document.getElementById('content').value;
+            let kind;
+            
+            if (isAddingNewKind) {
+                kind = document.getElementById('newKindInput').value.trim();
+                if (!kind) {
+                    document.getElementById('message').innerHTML = 
+                        '<p style="color: red;">Please enter a new kind</p>';
+                    return;
+                }
+            } else {
+                kind = document.getElementById('kindSelect').value;
+                if (kind === "add_new") {
+                    document.getElementById('message').innerHTML = 
+                        '<p style="color: red;">Please select a kind or add a new one</p>';
+                    return;
+                }
+            }
+            
+            const token = document.getElementById('token').value;
+
+            try {
+                // 获取现有数据
+                const existingData = await fetchData(token);
+                
+                // 生成新ID
+                const newContentId = existingData.length > 0 
+                    ? Math.max(...existingData.map(d => d.contentid)) + 1 
+                    : 1;
+
+                // 生成kindid
+                let kindid;
+                const existingKindEntry = existingData.find(d => d.kind === kind);
+                
+                if (existingKindEntry) {
+                    kindid = existingKindEntry.kindid;
+                } else {
+                    const existingKindids = [...new Set(existingData.map(d => d.kindid))];
+                    kindid = existingKindids.length > 0 ? Math.max(...existingKindids) + 1 : 1;
+                    allKinds.push(kind); // 添加到分类列表
+                    updateKindSelect(); // 更新下拉框
+                }
+
+                // 创建新条目
+                const newEntry = {
+                    content: content,
+                    kind: kind,
+                    contentid: newContentId,
+                    kindid: kindid
+                };
+
+                // 更新数据
+                const updatedData = [...existingData, newEntry];
+                await updateData(updatedData, token);
+                
+                // 重置表单
+                document.getElementById('content').value = '';
+                document.getElementById('newKindInput').value = '';
+                document.getElementById('kindSelect').value = allKinds[0] || '';
+                document.getElementById('kindSelect').style.display = 'block';
+                document.getElementById('newKindInput').style.display = 'none';
+                isAddingNewKind = false;
+                
+                document.getElementById('message').innerHTML = 
+                    '<p style="color: green;">Successfully submitted!</p>';
+            } catch (error) {
+                document.getElementById('message').innerHTML = 
+                    `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+
+        async function fetchData(token) {
+            const response = await fetch(
+                'https://api.github.com/repos/wanwusangzhigit/data/contents/data.json',
+                {
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                }
+            );
+
+            if (!response.ok) {
+                if (response.status === 404) {
+                    return []; // 文件不存在时返回空数组
+                }
+                throw new Error('Failed to fetch data');
+            }
+            
+            const result = await response.json();
+            return JSON.parse(atob(result.content));
+        }
+
+        async function updateData(data, token) {
+            const content = btoa(JSON.stringify(data, null, 2));
+            const sha = await getFileSHA(token);
+            
+            const response = await fetch(
+                'https://api.github.com/repos/wanwusangzhigit/data/contents/data.json',
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/vnd.github.v3+json'
+                    },
+                    body: JSON.stringify({
+                        message: "Add new data entry",
+                        content: content,
+                        sha: sha || undefined // 如果sha为null则不发送
+                    })
+                }
+            );
+
+            if (!response.ok) throw new Error('Failed to update data');
+            return response.json();
+        }
+
+        async function getFileSHA(token) {
+            try {
+                const response = await fetch(
+                    'https://api.github.com/repos/wanwusangzhigit/data/contents/data.json',
+                    {
+                        headers: {
+                            'Authorization': `token ${token}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    }
+                );
+                const data = await response.json();
+                return data.sha;
+            } catch (error) {
+                return null; // 文件不存在时返回null
+            }
+        }
+
+        // 初始化时尝试加载分类
+        document.getElementById('token').addEventListener('change', initialize);
+    </script>
+</body>
+  </html>
