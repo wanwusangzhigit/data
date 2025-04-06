@@ -132,10 +132,13 @@
         async function initializeKinds(token) {
             try {
                 const data = await fetchData(token);
-                allKinds = [...new Set(data.map(item => item.kind))];
+                allKinds = data.length > 0 
+                    ? [...new Set(data.map(item => item.kind))] 
+                    : [];
                 updateKindSelect();
             } catch (error) {
                 console.error('初始化分类失败:', error);
+                showMessage(`初始化失败: ${error.message}`, 'error');
             }
         }
 
@@ -144,6 +147,17 @@
             const select = document.getElementById('kindSelect');
             select.innerHTML = '';
             
+            // 添加默认选项
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = allKinds.length > 0 
+                ? '请选择分类' 
+                : '暂无分类，请新建';
+            defaultOption.disabled = true;
+            defaultOption.selected = true;
+            select.appendChild(defaultOption);
+
+            // 添加现有分类
             allKinds.forEach(kind => {
                 const option = document.createElement('option');
                 option.value = kind;
@@ -196,7 +210,7 @@
                 }
             } else {
                 kind = document.getElementById('kindSelect').value;
-                if (kind === '__add_new__') {
+                if (kind === '__add_new__' || !kind) {
                     showMessage('请选择有效分类或创建新分类', 'error');
                     return;
                 }
@@ -322,7 +336,7 @@
 
         // 初始化事件监听
         document.getElementById('token').addEventListener('input', function() {
-            if (this.value.length > 40) initializeKinds(this.value);
+            if (this.value.length >= 40) initializeKinds(this.value);
         });
     </script>
 </body>
