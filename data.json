@@ -1,1 +1,8 @@
-[]
+[
+  {
+    "content": "test",
+    "kind": "test",
+    "contentid": 1,
+    "kindid": 1
+  }
+]
