@@ -14,23 +14,97 @@
             --success: #1A7F37;
         }
 
-        /* 保持原有样式不变 */
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; background: var(--background); color: var(--text); margin: 0; padding: 20px; }
-        .container { max-width: 760px; margin: 0 auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
-        .form-group { margin-bottom: 1.5rem; }
-        label { display: block; margin-bottom: 0.5rem; font-weight: 600; }
-        textarea, input, select { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; margin-top: 4px; }
-        textarea { min-height: 100px; resize: vertical; }
-        button { background: var(--primary); color: white; border: none; padding: 10px 24px; border-radius: 6px; cursor: pointer; font-weight: 500; transition: opacity 0.2s; }
-        button:hover { opacity: 0.9; }
-        .alert { padding: 12px; border-radius: 6px; margin: 1rem 0; }
-        .alert-success { background: #DDF4FF; color: var(--success); }
-        .alert-error { background: #FFEBE9; color: var(--error); }
-        #kindContainer { display: flex; gap: 10px; align-items: center; }
-        #newKindInput { display: none; flex: 1; }
-        /* 新增样式修复 */
-        #kindSelect option[value="__add_new__"] { color: var(--primary); font-weight: 500; }
-        .alert:empty { display: none !important; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            background-color: var(--background);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 760px;
+            margin: 0 auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        textarea, input, select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: opacity 0.2s;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .alert {
+            padding: 12px;
+            border-radius: 6px;
+            margin: 1rem 0;
+        }
+
+        .alert-success {
+            background-color: #DDF4FF;
+            color: var(--success);
+        }
+
+        .alert-error {
+            background-color: #FFEBE9;
+            color: var(--error);
+        }
+
+        #kindContainer {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        #newKindInput {
+            display: none;
+            flex: 1;
+        }
+
+        .alert:empty {
+            display: none !important;
+        }
+
+        #kindSelect option[value="__add_new__"] {
+            color: var(--primary);
+            font-weight: 500;
+        }
     </style>
 </head>
 <body>
@@ -60,36 +134,34 @@
     </div>
 
     <script>
+        // UTF-8 编解码函数
+        function utf8ToBase64(str) {
+            return btoa(unescape(encodeURIComponent(str)));
+        }
+
+        function base64ToUtf8(base64) {
+            return decodeURIComponent(escape(atob(base64)));
+        }
+
         let allKinds = [];
         let isAddingNewKind = false;
 
-        // 初始化分类（新增调试日志）
         async function initializeKinds(token) {
             try {
-                console.log('[DEBUG] 开始初始化分类...');
                 const data = await fetchData(token);
-                console.log('[DEBUG] 获取到数据:', data);
-                
                 allKinds = Array.isArray(data) 
-                    ? [...new Set(data.map(item => item.kind))]
+                    ? [...new Set(data.map(item => item.kind))] 
                     : [];
-                
-                console.log('[DEBUG] 处理后的分类:', allKinds);
                 updateKindSelect();
             } catch (error) {
-                console.error('初始化失败:', error);
                 showMessage(`分类加载失败: ${error.message}`, 'error');
             }
         }
 
-        // 修复的选项生成逻辑
         function updateKindSelect() {
             const select = document.getElementById('kindSelect');
-            console.log('[DEBUG] 更新分类选择器...');
-            
-            // 清空现有选项
             select.innerHTML = '';
-
+            
             // 默认提示选项
             const defaultOption = new Option(
                 allKinds.length > 0 ? '-- 请选择分类 --' : '-- 暂无分类 --',
@@ -100,20 +172,17 @@
             defaultOption.disabled = true;
             select.add(defaultOption);
 
-            // 添加现有分类
+            // 现有分类
             allKinds.forEach(kind => {
                 select.add(new Option(kind, kind));
             });
 
-            // 强制添加新建分类选项（修复点）
+            // 新建分类选项
             const addOption = new Option('+ 新建分类', '__add_new__');
-            addOption.style.color = '#2DA44E'; // 绿色高亮
+            addOption.style.color = '#2DA44E';
             select.add(addOption);
-
-            console.log('[DEBUG] 当前选项数量:', select.options.length);
         }
 
-        // 分类选择变化处理
         function handleKindChange() {
             const select = document.getElementById('kindSelect');
             const newKindInput = document.getElementById('newKindInput');
@@ -130,21 +199,17 @@
             }
         }
 
-        // 提交数据（新增验证）
         async function submitData() {
-            // 清空旧消息样式
             document.getElementById('message').className = 'alert';
             
             const content = document.getElementById('content').value.trim();
             const token = document.getElementById('token').value.trim();
             let kind;
 
-            // 基础验证
             if (!content || !token) {
                 return showMessage('请填写所有必填字段', 'error');
             }
 
-            // 获取分类
             if (isAddingNewKind) {
                 kind = document.getElementById('newKindInput').value.trim();
                 if (!kind) return showMessage('请输入新分类名称', 'error');
@@ -156,13 +221,11 @@
             }
 
             try {
-                // 获取并更新数据
                 const existingData = await fetchData(token);
                 const newContentId = existingData.length > 0 
                     ? Math.max(...existingData.map(d => d.contentid)) + 1 
                     : 1;
 
-                // 处理分类ID
                 let kindid;
                 const existingKind = existingData.find(d => d.kind === kind);
                 if (existingKind) {
@@ -170,15 +233,13 @@
                 } else {
                     const maxKindId = existingData.reduce((max, d) => Math.max(max, d.kindid), 0);
                     kindid = maxKindId + 1;
-                    allKinds.push(kind); // 更新本地分类列表
-                    updateKindSelect(); // 立即更新选择器
+                    allKinds.push(kind);
+                    updateKindSelect();
                 }
 
-                // 提交新数据
                 const newEntry = { content, kind, contentid: newContentId, kindid };
                 await updateData([...existingData, newEntry], token);
                 
-                // 重置表单
                 document.getElementById('content').value = '';
                 document.getElementById('newKindInput').value = '';
                 showMessage('提交成功！', 'success');
@@ -187,7 +248,6 @@
             }
         }
 
-        // 显示消息（修复样式残留）
         function showMessage(message, type = 'info') {
             const messageDiv = document.getElementById('message');
             messageDiv.className = `alert alert-${type}`;
@@ -195,39 +255,34 @@
             
             setTimeout(() => {
                 messageDiv.innerHTML = '';
-                messageDiv.className = 'alert'; // 完全重置样式
+                messageDiv.className = 'alert';
             }, 5000);
         }
 
-        // GitHub API交互
         async function fetchData(token) {
-            try {
-                const response = await fetch(
-                    'https://api.github.com/repos/wanwusangzhigit/data/contents/data.json',
-                    {
-                        headers: {
-                            'Authorization': `token ${token}`,
-                            'Accept': 'application/vnd.github.v3+json'
-                        }
+            const response = await fetch(
+                'https://api.github.com/repos/wanwusangzhigit/data/contents/data.json',
+                {
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json'
                     }
-                );
-
-                if (!response.ok) {
-                    if (response.status === 404) return [];
-                    const error = await response.json();
-                    throw new Error(error.message || '获取数据失败');
                 }
+            );
 
-                const { content } = await response.json();
-                return JSON.parse(atob(content.replace(/\s/g, '')));
-            } catch (error) {
-                console.error('数据获取失败:', error);
-                throw error;
+            if (!response.ok) {
+                if (response.status === 404) return [];
+                const error = await response.json();
+                throw new Error(error.message || '获取数据失败');
             }
+
+            const { content } = await response.json();
+            return JSON.parse(base64ToUtf8(content));
         }
 
         async function updateData(data, token) {
-            const content = btoa(JSON.stringify(data, null, 2));
+            const jsonString = JSON.stringify(data, null, 2);
+            const content = utf8ToBase64(jsonString);
             const sha = await getFileSHA(token);
 
             const response = await fetch(
@@ -236,13 +291,14 @@
                     method: 'PUT',
                     headers: {
                         'Authorization': `token ${token}`,
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/json; charset=utf-8',
                         'Accept': 'application/vnd.github.v3+json'
                     },
                     body: JSON.stringify({
                         message: `添加新条目 - ${new Date().toLocaleString()}`,
-                        content,
-                        sha
+                        content: content,
+                        sha: sha,
+                        encoding: 'base64'
                     })
                 }
             );
@@ -262,18 +318,16 @@
                 const { sha } = await response.json();
                 return sha;
             } catch {
-                return null; // 文件不存在时返回null
+                return null;
             }
         }
 
-        // Token输入监听（增强触发逻辑）
-        document.getElementById('token').addEventListener('input', function(e) {
-            if (e.target.value.length >= 40) {
-                console.log('[DEBUG] 检测到有效Token');
-                initializeKinds(e.target.value);
+        document.getElementById('token').addEventListener('input', function() {
+            if (this.value.length >= 40) {
+                initializeKinds(this.value);
             } else {
                 allKinds = [];
-                updateKindSelect(); // 立即清空选项
+                updateKindSelect();
             }
         });
     </script>
