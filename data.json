@@ -4,5 +4,11 @@
     "kind": "test",
     "contentid": 1,
     "kindid": 1
+  },
+  {
+    "content": "纵十年饮冰，热血难凉",
+    "kind": "word",
+    "contentid": 2,
+    "kindid": 2
   }
 ]
