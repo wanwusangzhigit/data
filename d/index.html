@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内容查询系统</title>
+    <style>
+        :root {
+            --primary: #2DA44E;
+            --background: #F6F8FA;
+            --border: #D0D7DE;
+            --text: #24292F;
+            --error: #CF222E;
+            --success: #1A7F37;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            background-color: var(--background);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 20px;
+            background: var(--background);
+            border-radius: 8px;
+            white-space: pre-wrap;
+        }
+
+        .error {
+            color: var(--error);
+            background: #FFEBE9;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid var(--error);
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .json-key { color: var(--primary); }
+        .json-string { color: #032f62; }
+        .json-number { color: #005cc5; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>内容查询</h1>
+        <div id="result">加载中...</div>
+        <a href="../" class="back-link">← 返回首页</a>
+    </div>
+
+    <script>
+        // 增强版JSON语法高亮
+        function syntaxHighlight(json) {
+            return json
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, 
+                match => {
+                    let cls = 'json-number';
+                    if (/^"/.test(match)) {
+                        cls = /:$/.test(match) ? 'json-key' : 'json-string';
+                    } else if (/true|false/.test(match)) {
+                        cls = 'json-boolean';
+                    } else if (/null/.test(match)) {
+                        cls = 'json-null';
+                    }
+                    return '<span class="' + cls + '">' + match + '</span>';
+                })
+                .replace(/\n/g, '<br>')
+                .replace(/ /g, '&nbsp;');
+        }
+
+        // 显示错误信息
+        function showError(message) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `
+                <div class="error">
+                    <strong>错误：</strong>${message}
+                </div>
+            `;
+        }
+
+        // 主查询函数
+        async function queryContent() {
+            try {
+                // 解析URL参数
+                const urlParams = new URLSearchParams(window.location.search);
+                const contentId = urlParams.get('id');
+
+                // 参数验证
+                if (!contentId) {
+                    return showError('缺少查询参数：请使用格式 /t?id=1');
+                }
+
+                if (!/^\d+$/.test(contentId)) {
+                    return showError('无效的ID格式：必须为数字');
+                }
+
+                // 加载数据
+                const response = await fetch('../data.json');
+                if (!response.ok) {
+                    throw new Error(`数据加载失败 (HTTP ${response.status})`);
+                }
+                
+                const data = await response.json();
+                
+                // 查找匹配条目
+                const item = data.find(d => d.contentid === parseInt(contentId));
+                
+                // 显示结果
+                const resultDiv = document.getElementById('result');
+                if (item) {
+                    const formattedJSON = syntaxHighlight(JSON.stringify(item, null, 2));
+                    resultDiv.innerHTML = `
+                        <h3>查询结果 (ID: ${contentId})</h3>
+                        <div>${formattedJSON}</div>
+                    `;
+                } else {
+                    showError(`未找到 contentid=${contentId} 的内容`);
+                }
+            } catch (error) {
+                showError(`查询失败：${error.message}`);
+            }
+        }
+
+        // 页面加载时执行
+        window.onload = queryContent;
+    </script>
+</body>
+</html>
